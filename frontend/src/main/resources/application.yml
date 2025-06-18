@@ -1,0 +1,48 @@
+server:
+  port: 8091
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  
+spring:
+  application:
+    name: frontend
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+    mode: HTML
+    encoding: UTF-8
+  http:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: full
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.chatapp.frontend: DEBUG
+    org.springframework.web.filter.CommonsRequestLoggingFilter: DEBUG
+    org.springframework.web.servlet.DispatcherServlet: DEBUG
+    org.springframework.web.servlet.mvc.method.annotation: TRACE
+    org.springframework.web.client.RestTemplate: DEBUG
+    org.springframework.cloud.openfeign: DEBUG 

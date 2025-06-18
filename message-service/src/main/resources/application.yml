@@ -1,0 +1,43 @@
+server:
+  port: 8083
+  
+spring:
+  application:
+    name: message-service
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: chat_message_db
+      username: root
+      password: password
+      authentication-database: admin
+  # RabbitMQ配置
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: password
+    virtual-host: /
+    connection-timeout: 15000
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: auto
+        retry:
+          enabled: true
+          max-attempts: 3
+        
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*" 

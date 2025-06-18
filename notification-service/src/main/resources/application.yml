@@ -1,0 +1,46 @@
+server:
+  port: 8084
+  
+spring:
+  application:
+    name: notification-service
+  data:
+    mongodb:
+      host: localhost
+      port: 27017
+      database: chat_notification_db
+      username: root
+      password: password
+      authentication-database: admin
+  
+# RabbitMQ配置
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: password
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: auto
+        retry:
+          enabled: true
+          max-attempts: 3
+  
+# WebSocket配置
+websocket:
+  endpoint: /ws
+  allowed-origins: "*"
+  
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*" 
