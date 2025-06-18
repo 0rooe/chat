@@ -38,7 +38,7 @@
         <mongodb.version>4.9.1</mongodb.version>
     </properties>    <build>
         <plugins>
-            <!-- SonarQube插件 -->
+            <!-- SonarCloud插件 -->
             <plugin>
                 <groupId>org.sonarsource.scanner.maven</groupId>
                 <artifactId>sonar-maven-plugin</artifactId>
