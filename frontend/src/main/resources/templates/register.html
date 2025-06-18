@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - 聊天应用</title>
+    <link rel="stylesheet" th:href="@{/css/register.css}">
+</head>
+<body>
+    <div class="register-wrapper">
+        <div class="register-container">
+            <div class="register-card">
+                <div class="register-header">
+                    <div class="logo-circle">
+                        <span class="logo-text">Chat</span>
+                    </div>
+                    <h1 class="title">创建新账户</h1>
+                    <p class="subtitle">加入我们，开始精彩对话</p>
+                </div>
+                
+                <div class="register-form">
+                    <!-- 成功/错误消息 -->
+                    <div th:if="${param.success}" class="message success">
+                        <div class="message-icon">✓</div>
+                        <div class="message-text">
+                            注册成功！请<a th:href="@{/login}" class="link">登录</a>
+                        </div>
+                    </div>
+                    
+                    <div th:if="${param.error}" class="message error">
+                        <div class="message-icon">⚠</div>
+                        <div class="message-text">
+                            注册失败：<span th:text="${param.message}">未知错误</span>
+                        </div>
+                    </div>
+                    
+                    <form th:action="@{/register}" method="post" id="registerForm" class="form">
+                        <div class="input-group">
+                            <label for="username" class="input-label">用户名</label>
+                            <input type="text" 
+                                   id="username" 
+                                   name="username" 
+                                   class="input-field"
+                                   placeholder="请输入用户名"
+                                   required 
+                                   minlength="3" 
+                                   maxlength="50">
+                            <div class="input-help">3-50个字符，支持字母、数字和下划线</div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="nickname" class="input-label">昵称</label>
+                            <input type="text" 
+                                   id="nickname" 
+                                   name="nickname" 
+                                   class="input-field"
+                                   placeholder="请输入昵称"
+                                   required 
+                                   maxlength="20">
+                            <div class="input-help">最多20个字符</div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="password" class="input-label">密码</label>
+                            <input type="password" 
+                                   id="password" 
+                                   name="password" 
+                                   class="input-field"
+                                   placeholder="请输入密码"
+                                   required 
+                                   minlength="6">
+                            <div class="password-strength">
+                                <div class="strength-bar" id="strengthBar"></div>
+                            </div>
+                            <div class="input-help">至少6个字符，建议包含字母、数字和符号</div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="confirmPassword" class="input-label">确认密码</label>
+                            <input type="password" 
+                                   id="confirmPassword" 
+                                   name="confirmPassword" 
+                                   class="input-field"
+                                   placeholder="请再次输入密码"
+                                   required>
+                        </div>
+
+                        <button type="submit" class="submit-btn">
+                            <span class="btn-text">创建账户</span>
+                        </button>
+                    </form>
+
+                    <div class="form-footer">
+                        <span class="footer-text">已有账户？</span>
+                        <a th:href="@{/login}" class="footer-link">立即登录</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/register.js}"></script>
+</body>
+</html> 

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket聊天测试</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.5.0/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        .connection-panel {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+        }
+        .message-container {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            padding: 10px;
+        }
+        .input-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 15px;
+            margin-left: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .sent {
+            background-color: #e3f2fd;
+            margin-left: 20%;
+        }
+        .received {
+            background-color: #f5f5f5;
+            margin-right: 20%;
+        }
+        .encryption-panel {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #fffde7;
+            border-radius: 5px;
+        }
+        .keys-container {
+            display: flex;
+            flex-direction: column;
+        }
+        textarea {
+            height: 80px;
+            margin-bottom: 10px;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket聊天测试</h1>
+        
+        <div class="connection-panel">
+            <h2>连接设置</h2>
+            <div>
+                <label for="userId">您的用户ID: </label>
+                <input type="text" id="userId" placeholder="输入您的用户ID">
+            </div>
+            <div>
+                <label for="receiverId">接收者ID: </label>
+                <input type="text" id="receiverId" placeholder="输入接收者ID">
+            </div>
+            <button id="connectButton">连接</button>
+            <button id="disconnectButton" disabled>断开连接</button>
+        </div>
+        
+        <div class="encryption-panel">
+            <h2>端到端加密</h2>
+            <button id="generateKeysButton">生成密钥对</button>
+            <div class="keys-container">
+                <div>
+                    <label for="publicKey">公钥: </label>
+                    <textarea id="publicKey" readonly></textarea>
+                </div>
+                <div>
+                    <label for="privateKey">私钥: </label>
+                    <textarea id="privateKey" readonly></textarea>
+                </div>
+                <div>
+                    <label for="receiverPublicKey">接收者公钥: </label>
+                    <textarea id="receiverPublicKey" placeholder="粘贴接收者的公钥以加密消息"></textarea>
+                </div>
+            </div>
+            <div>
+                <input type="checkbox" id="encryptMessages">
+                <label for="encryptMessages">加密消息</label>
+            </div>
+        </div>
+        
+        <div class="message-container" id="messageContainer"></div>
+        
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="输入消息...">
+            <button id="sendButton" disabled>发送</button>
+        </div>
+    </div>
+    
+    <script>
+        let stompClient = null;
+        let userId = null;
+        let receiverId = null;
+        let publicKey = null;
+        let privateKey = null;
+        
+        document.getElementById('connectButton').addEventListener('click', connect);
+        document.getElementById('disconnectButton').addEventListener('click', disconnect);
+        document.getElementById('sendButton').addEventListener('click', sendMessage);
+        document.getElementById('generateKeysButton').addEventListener('click', generateKeys);
+        
+        // 按下Enter键发送消息
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        function connect() {
+            userId = document.getElementById('userId').value;
+            receiverId = document.getElementById('receiverId').value;
+            
+            if (!userId || !receiverId) {
+                alert('请输入您的用户ID和接收者ID');
+                return;
+            }
+            
+            // 创建SockJS连接
+            const socket = new SockJS('/ws-chat');
+            stompClient = Stomp.over(socket);
+            
+            stompClient.connect({}, function(frame) {
+                console.log('Connected: ' + frame);
+                
+                // 订阅个人消息
+                stompClient.subscribe('/user/' + userId + '/queue/messages', function(message) {
+                    displayMessage(JSON.parse(message.body), false);
+                });
+                
+                // 订阅群组消息
+                stompClient.subscribe('/topic/group/' + receiverId, function(message) {
+                    displayMessage(JSON.parse(message.body), false);
+                });
+                
+                document.getElementById('connectButton').disabled = true;
+                document.getElementById('disconnectButton').disabled = false;
+                document.getElementById('sendButton').disabled = false;
+                
+                addSystemMessage('已连接到WebSocket服务器');
+            }, function(error) {
+                console.error('连接错误: ' + error);
+                addSystemMessage('连接失败: ' + error);
+            });
+        }
+        
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+                stompClient = null;
+                
+                document.getElementById('connectButton').disabled = false;
+                document.getElementById('disconnectButton').disabled = true;
+                document.getElementById('sendButton').disabled = true;
+                
+                addSystemMessage('已断开与WebSocket服务器的连接');
+            }
+        }
+        
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const content = messageInput.value;
+            
+            if (!content || !stompClient) {
+                return;
+            }
+            
+            const useEncryption = document.getElementById('encryptMessages').checked;
+            const receiverPublicKey = document.getElementById('receiverPublicKey').value;
+            
+            let message = {
+                senderId: parseInt(userId),
+                receiverId: parseInt(receiverId),
+                content: content,
+                contentType: 'TEXT',
+                messageType: 'PRIVATE'
+            };
+            
+            if (useEncryption && receiverPublicKey) {
+                // 假设在实际使用中这里会调用加密API
+                fetch('/api/v1/encryption/encrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        content: content,
+                        publicKey: receiverPublicKey
+                    })
+                })
+                .then(response => response.text())
+                .then(encryptedContent => {
+                    // 发送加密消息
+                    const encryptedMessage = {
+                        senderId: parseInt(userId),
+                        receiverId: parseInt(receiverId),
+                        encryptedContent: encryptedContent,
+                        contentType: 'TEXT',
+                        messageType: 'PRIVATE'
+                    };
+                    
+                    stompClient.send("/app/chat.encrypted", {}, JSON.stringify(encryptedMessage));
+                    displayMessage(message, true); // 显示原始消息
+                })
+                .catch(error => {
+                    console.error('加密失败:', error);
+                    addSystemMessage('加密失败: ' + error.message);
+                });
+            } else {
+                // 发送普通消息
+                stompClient.send("/app/chat.send", {}, JSON.stringify(message));
+                displayMessage(message, true);
+            }
+            
+            messageInput.value = '';
+        }
+        
+        function displayMessage(message, isSent) {
+            const messageContainer = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+            
+            // 如果是加密消息且是接收的，尝试解密
+            if (message.isEncrypted && !isSent && privateKey) {
+                // 假设在实际使用中这里会调用解密API
+                fetch('/api/v1/encryption/decrypt', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        content: message.content,
+                        privateKey: privateKey
+                    })
+                })
+                .then(response => response.text())
+                .then(decryptedContent => {
+                    messageDiv.innerHTML = `
+                        <strong>${isSent ? '我' : message.senderId}</strong>: ${decryptedContent}
+                        <br><small>(加密消息已解密)</small>
+                    `;
+                })
+                .catch(error => {
+                    console.error('解密失败:', error);
+                    messageDiv.innerHTML = `
+                        <strong>${isSent ? '我' : message.senderId}</strong>: [加密消息]
+                        <br><small>(解密失败: ${error.message})</small>
+                    `;
+                });
+            } else {
+                messageDiv.textContent = `${isSent ? '我' : message.senderId}: ${message.content}`;
+            }
+            
+            messageContainer.appendChild(messageDiv);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+        
+        function addSystemMessage(message) {
+            const messageContainer = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.style.backgroundColor = '#fff9c4';
+            messageDiv.textContent = `系统: ${message}`;
+            messageContainer.appendChild(messageDiv);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+        
+        function generateKeys() {
+            // 在实际使用中，这里会调用后端生成密钥对API
+            fetch('/api/v1/encryption/keys')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('publicKey').value = data.publicKey;
+                    document.getElementById('privateKey').value = data.privateKey;
+                    publicKey = data.publicKey;
+                    privateKey = data.privateKey;
+                    addSystemMessage('已生成新的密钥对');
+                })
+                .catch(error => {
+                    console.error('生成密钥对失败:', error);
+                    addSystemMessage('生成密钥对失败: ' + error.message);
+                });
+        }
+    </script>
+</body>
+</html> 

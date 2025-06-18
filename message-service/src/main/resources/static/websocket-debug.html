@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket调试页面</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .log { height: 300px; overflow-y: auto; background: #f5f5f5; padding: 10px; font-family: monospace; }
+        input, button { margin: 5px; padding: 5px; }
+        .connected { color: green; }
+        .disconnected { color: red; }
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket调试页面</h1>
+    
+    <div class="section">
+        <h3>连接状态: <span id="status" class="disconnected">未连接</span></h3>
+        <button id="connectBtn" onclick="connect()">连接</button>
+        <button id="disconnectBtn" onclick="disconnect()" disabled>断开连接</button>
+    </div>
+    
+    <div class="section">
+        <h3>发送消息</h3>
+        <input type="number" id="senderId" placeholder="发送者ID" value="1">
+        <input type="number" id="receiverId" placeholder="接收者ID" value="2">
+        <input type="text" id="messageContent" placeholder="消息内容" value="测试消息">
+        <button onclick="sendMessage()" id="sendBtn" disabled>发送消息</button>
+    </div>
+    
+    <div class="section">
+        <h3>订阅消息</h3>
+        <input type="number" id="subscribeUserId" placeholder="用户ID" value="1">
+        <button onclick="subscribeToUser()" id="subscribeBtn" disabled>订阅用户消息</button>
+    </div>
+    
+    <div class="section">
+        <h3>日志</h3>
+        <button onclick="clearLog()">清除日志</button>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let stompClient = null;
+        let isConnected = false;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        function connect() {
+            log('尝试连接WebSocket...');
+            
+            try {
+                const socket = new SockJS('/ws-chat');
+                stompClient = Stomp.over(socket);
+                
+                // 禁用调试日志
+                stompClient.debug = function(str) {
+                    log('STOMP: ' + str);
+                };
+
+                const connectHeaders = {
+                    'userId': document.getElementById('subscribeUserId').value,
+                    'username': 'test-user'
+                };
+
+                stompClient.connect(connectHeaders, function(frame) {
+                    log('<span class="connected">WebSocket连接成功!</span>');
+                    log('Frame: ' + frame);
+                    isConnected = true;
+                    updateConnectionStatus();
+                }, function(error) {
+                    log('<span class="error">WebSocket连接失败: ' + error + '</span>');
+                    isConnected = false;
+                    updateConnectionStatus();
+                });
+            } catch (err) {
+                log('<span class="error">连接异常: ' + err + '</span>');
+                isConnected = false;
+                updateConnectionStatus();
+            }
+        }
+
+        function disconnect() {
+            if (stompClient !== null) {
+                stompClient.disconnect();
+                log('WebSocket连接已断开');
+            }
+            isConnected = false;
+            updateConnectionStatus();
+        }
+
+        function subscribeToUser() {
+            if (stompClient && isConnected) {
+                const userId = document.getElementById('subscribeUserId').value;
+                const destination = '/user/' + userId + '/queue/messages';
+                
+                stompClient.subscribe(destination, function(message) {
+                    log('收到消息: ' + message.body);
+                    const msg = JSON.parse(message.body);
+                    log('解析消息: 发送者=' + msg.senderId + ', 接收者=' + msg.receiverId + ', 内容=' + msg.content);
+                });
+                
+                log('已订阅: ' + destination);
+            } else {
+                log('<span class="error">请先连接WebSocket</span>');
+            }
+        }
+
+        function sendMessage() {
+            if (stompClient && isConnected) {
+                const message = {
+                    senderId: parseInt(document.getElementById('senderId').value),
+                    receiverId: parseInt(document.getElementById('receiverId').value),
+                    content: document.getElementById('messageContent').value,
+                    contentType: 'TEXT',
+                    messageType: 'PRIVATE'
+                };
+
+                log('发送消息: ' + JSON.stringify(message));
+                stompClient.send('/app/chat.send', {}, JSON.stringify(message));
+            } else {
+                log('<span class="error">请先连接WebSocket</span>');
+            }
+        }
+
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const sendBtn = document.getElementById('sendBtn');
+            const subscribeBtn = document.getElementById('subscribeBtn');
+
+            if (isConnected) {
+                statusElement.textContent = '已连接';
+                statusElement.className = 'connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendBtn.disabled = false;
+                subscribeBtn.disabled = false;
+            } else {
+                statusElement.textContent = '未连接';
+                statusElement.className = 'disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+                subscribeBtn.disabled = true;
+            }
+        }
+
+        // 页面加载时初始化状态
+        window.onload = function() {
+            updateConnectionStatus();
+        };
+    </script>
+</body>
+</html> 

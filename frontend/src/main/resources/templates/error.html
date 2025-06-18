@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>错误 - 聊天应用</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #dc3545;
+            color: white;
+            text-align: center;
+            font-size: 1.5rem;
+            padding: 1rem;
+        }
+        .error-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>错误
+            </div>
+            <div class="card-body">
+                <h5 class="card-title" th:text="${errorMessage ?: '发生错误'}">发生错误</h5>
+                <p class="card-text">抱歉，系统在处理您的请求时遇到了问题。</p>
+                
+                <div class="error-details" th:if="${errorDetails != null}">
+                    <strong>错误详情:</strong>
+                    <p th:text="${errorDetails}">错误详情将显示在这里</p>
+                </div>
+                
+                <div class="mt-4">
+                    <p><strong>时间:</strong> <span th:text="${#dates.format(new java.util.Date(timestamp), 'yyyy-MM-dd HH:mm:ss')}">2025-06-07 17:00:00</span></p>
+                    <p><strong>路径:</strong> <span th:text="${path}">请求路径</span></p>
+                    <p th:if="${status != null}"><strong>状态码:</strong> <span th:text="${status}">500</span></p>
+                </div>
+                
+                <div class="d-grid gap-2 mt-4">
+                    <a href="/" class="btn btn-primary">返回首页</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html> 

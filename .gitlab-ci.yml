@@ -1,0 +1,103 @@
+# GitLab CI/CD 配置文件 - 聊天应用
+# 精简版本：只运行 SonarQube 代码质量检查
+
+stages:
+  - sonarqube-test
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository -Xmx2048m"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"
+  GIT_DEPTH: "0"  # 完整Git历史用于SonarQube分析
+
+# 全局缓存配置
+cache:
+  key: "${CI_JOB_NAME}-${CI_COMMIT_REF_SLUG}"
+  paths:
+    - .m2/repository/
+    - .sonar/cache/
+  policy: pull-push
+
+# SonarQube代码质量分析（包含最小编译）
+sonarqube-test:
+  stage: sonarqube-test
+  image: maven:3.8.6-openjdk-11
+  variables:
+    SONAR_TOKEN: $SONAR_TOKEN
+    SONAR_HOST_URL: $SONAR_HOST_URL
+  before_script:
+    - echo "🔍 准备SonarQube分析环境..."
+    - |
+      if [ -z "$SONAR_HOST_URL" ] || [ -z "$SONAR_TOKEN" ]; then
+        echo "❌ SonarQube配置缺失！请设置 SONAR_HOST_URL 和 SONAR_TOKEN 变量"
+        echo "💡 提示：可以在 GitLab 项目设置 -> CI/CD -> Variables 中添加："
+        echo "   SONAR_HOST_URL = http://localhost:9000 (或您的SonarQube地址)"
+        echo "   SONAR_TOKEN = 您的SonarQube令牌"
+        exit 1
+      fi
+  script:
+    - echo "⚡ 快速编译（跳过测试）..."
+    - mvn $MAVEN_CLI_OPTS clean compile -DskipTests -T 1C
+    - echo "🔍 运行SonarQube代码质量分析..."
+    - |
+      # 检查是否是合并请求
+      if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+        echo "📋 分析合并请求 #$CI_MERGE_REQUEST_IID"
+        mvn $MAVEN_CLI_OPTS sonar:sonar \
+          -Dsonar.projectKey=chat-app \
+          -Dsonar.projectName="Chat Application" \
+          -Dsonar.host.url="$SONAR_HOST_URL" \
+          -Dsonar.login="$SONAR_TOKEN" \
+          -Dsonar.pullrequest.key="$CI_MERGE_REQUEST_IID" \
+          -Dsonar.pullrequest.branch="$CI_MERGE_REQUEST_SOURCE_BRANCH_NAME" \
+          -Dsonar.pullrequest.base="$CI_MERGE_REQUEST_TARGET_BRANCH_NAME" \
+          -Dsonar.qualitygate.wait=true \
+          -Dsonar.qualitygate.timeout=300
+      else
+        echo "🌿 分析分支: $CI_COMMIT_REF_NAME"
+        mvn $MAVEN_CLI_OPTS sonar:sonar \
+          -Dsonar.projectKey=chat-app \
+          -Dsonar.projectName="Chat Application" \
+          -Dsonar.host.url="$SONAR_HOST_URL" \
+          -Dsonar.login="$SONAR_TOKEN" \
+          -Dsonar.branch.name="$CI_COMMIT_REF_NAME" \
+          -Dsonar.qualitygate.wait=true \
+          -Dsonar.qualitygate.timeout=300
+      fi
+    - echo "📊 SonarQube分析完成！"
+    - echo "🔗 查看报告：$SONAR_HOST_URL/dashboard?id=chat-app"
+  artifacts:
+    reports:
+      junit:
+        - "**/target/surefire-reports/TEST-*.xml"
+    paths:
+      - ".sonar/"
+    expire_in: 1 week
+    when: always
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_COMMIT_BRANCH
+      when: manual
+      allow_failure: false
+
+# 成功通知
+notify-success:
+  stage: .post
+  image: alpine:latest
+  script:
+    - echo "🎉 SonarQube 代码质量检查完成！"
+    - echo "📦 项目: $CI_PROJECT_NAME"
+    - echo "🌿 分支: $CI_COMMIT_REF_NAME"
+    - echo "💿 提交: $CI_COMMIT_SHA"
+    - echo "🔗 流水线: $CI_PIPELINE_URL"
+    - echo "📊 SonarQube报告: $SONAR_HOST_URL/dashboard?id=chat-app"
+    - echo "⚡ 跳过了完整构建，节省时间！"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_success
+    - if: $CI_COMMIT_BRANCH == "develop"
+      when: on_success 
